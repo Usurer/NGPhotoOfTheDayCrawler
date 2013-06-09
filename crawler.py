@@ -22,6 +22,13 @@ def SoupCaption(currentPageUlr):
     soup = BeautifulSoup(r.text)
     return str(soup.find(id="caption").find('h2'))
 
+def SoupDate(currentPageUlr):
+    caption = ''
+    urlBase = "http://photography.nationalgeographic.com"
+    captionFounded = False
+    r = requests.get(urlBase + currentPageUlr)
+    soup = BeautifulSoup(r.text)
+    return str(soup.find(id="caption").find(class_='publication_time').get_text())
 
 def GetDownloadUrl(currentPageUlr):
     url = currentPageUlr
@@ -95,11 +102,18 @@ def CrawlNatGeo(i):
             if len(caption) > 0:
                 caption = caption[4:-5]
                 caption = caption.replace(', ', '-')
-                caption = caption.replace(' ', '_')
+                caption = caption.replace(' ', '')
             else:
                 caption = str(iterator)
 
-            path = 'images/' + caption + '.jpg'
+            date = SoupDate(url)
+            if len(date) > 0:
+                date = date.replace(' ', '_')
+                date = date.replace(',', '')
+            else:
+                date = ''
+
+            path = 'images/' + caption + '-' + date + '.jpg'
             if not os.path.exists(path):
                 localFile = open(path, 'wb')
                 localFile.write(requests.get(res[1]).content)
