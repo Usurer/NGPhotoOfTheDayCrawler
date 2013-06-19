@@ -14,6 +14,12 @@ import os ## filesystem
 from bs4 import BeautifulSoup
 import sys
 
+# Yes - there are global variables and I don't fuckin' care!
+photosToDownload = 0
+folderToStore = 'images'
+formats = ['NG_YYYYMMDD_[NAME]', 'YYYYMMDD_[NAME]']
+selectedFormat = formats[0]
+
 def SoupCaption(currentPageUlr):
     caption = ''
     urlBase = "http://photography.nationalgeographic.com"
@@ -87,12 +93,45 @@ def GetPreviousPageUrl(currentPageUlr):
     else:
         print "Prev url not found for " + url
         return [False, ""]
+        
+def getDateFromString(dateString):
+    regDay = re.compile('[^0-9]{1,}[0-9]{1,2}[^0-9]{1}')
+    regYear = re.compile('[0-9]{4}')
+    regMonth = re.compile('[a-zA-Z]{3,}')
+    day = re.search(regDay, dateString).group(0)
+    year = re.search(regYear, dateString).group(0)
+    month = re.search(regMonth, dateString).group(0)
+    if month.lower() == 'january':
+        month = '01'    
+    elif month.lower() == 'february':
+        month = '02'
+    elif month.lower() == 'march':
+        month = '03'
+    elif month.lower() == 'april':
+        month = '04'
+    elif month.lower() == 'may':
+        month = '05'
+    elif month.lower() == 'june':
+        month = '06'
+    elif month.lower() == 'july':
+        month = '07'
+    elif month.lower() == 'august':
+        month = '08'
+    elif month.lower() == 'september':
+        month = '09'
+    elif month.lower() == 'october':
+        month = '10'
+    elif month.lower() == 'november':
+        month = '11'
+    elif month.lower() == 'december':
+        month = '12'
+    return str(day) + str(month) + str(year)
 
-def CrawlNatGeo(i):
+def CrawlNatGeo():
     iterator = 0
     url = '/photography/photo-of-the-day/'
 
-    while iterator < i:
+    while iterator < photosToDownload:
         res = GetDownloadUrl(url)
         if res[0]:
             print 'Downloading ' + res[1]
@@ -113,7 +152,7 @@ def CrawlNatGeo(i):
             else:
                 date = ''
 
-            path = 'images/' + caption + '-' + date + '.jpg'
+            path = folder + caption + '-' + date + '.jpg'
             if not os.path.exists(path):
                 localFile = open(path, 'wb')
                 localFile.write(requests.get(res[1]).content)
@@ -137,19 +176,26 @@ def CrawlNatGeo(i):
 
 
 
-def main():
-##    r = requests.get('https://github.com/timeline.json')
-##    print(r.text)
-    i = 0
+def main():    
     if len(sys.argv) > 1:
-        i = int(sys.argv[1])
+        photosToDownload = int(sys.argv[1])
     else:
-        i = 10
+        print 'Downloading default amount of 10 phothos'
+        photosToDownload = 10
+    if len(sys.argv) > 2 and isinstance(sys.argv[2], str):
+        folderToStore = sys.argv[2]
+        
+    if (len(sys.argv) > 3 
+        and isinstance(sys.argv[3], int)
+        and sys.argv[3] in range(0,2)):
+            selectedFormat = formats[sys.argv[3]]
+        
 
-    if i < 100 and i > 0:
-        CrawlNatGeo(i)
+    if photosToDownload in range(1, 100):
+        CrawlNatGeo()
     else:
-        print i
+        print str(photosToDownload) + 'Is not a valid amount of photos. ' 
+        + 'Use a number from range 1 to 99.'
 
 
 
