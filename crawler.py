@@ -30,6 +30,36 @@ def SoupDate(currentPageUlr):
     soup = BeautifulSoup(r.text)
     return str(soup.find(id="caption").find(class_='publication_time').get_text())
 
+def GetArchivesPage(archiveUrl):
+    archivePage = requests.get(archiveUrl)
+    return archivePage
+
+def GetLinksToPhotoPages(archivePageContent):
+    result = []
+
+    # Addinf ? after * makes it non-greedy
+    # DOTALL makes a newline be matched by *
+    wrapperPattern = re.compile('(<div class="photo_info".*?</div>)', re.MULTILINE | re.DOTALL)
+
+    # Use findall instead of search to get all matches
+    matchResult = re.findall(wrapperPattern, archivePageContent.text)
+
+    if not matchResult:
+        return
+
+    linkPattern = re.compile('<a href=".*"')
+
+    for photoTeaserContent in matchResult:
+        photoLinkMatch = re.search(linkPattern, photoTeaserContent)
+        linkContent = photoLinkMatch.group(0)
+        hrefPattern = re.compile('".*"')
+        hrefMatchResult = re.search(hrefPattern, linkContent)
+        url = hrefMatchResult.group(0)
+        url = url.strip('"/')
+        result.append(url)
+
+    return result
+
 def GetDownloadUrl(currentPageUlr):
     url = currentPageUlr
     urlBase = "http://photography.nationalgeographic.com"
@@ -140,6 +170,14 @@ def CrawlNatGeo(i):
 def main():
 ##    r = requests.get('https://github.com/timeline.json')
 ##    print(r.text)
+
+    archiveUrl = "http://photography.nationalgeographic.com/photography/photo-of-the-day/archive/"
+    archivePage = GetArchivesPage(archiveUrl)
+    photoPagesUrls = GetLinksToPhotoPages(archivePage)
+    for url in photoPagesUrls:
+        print(archiveUrl + url)
+
+    return
 
     i = 0
     if len(sys.argv) > 1:
