@@ -1,0 +1,7 @@
+images/
+.idea/workspace.xml
+.idea/vcs.xml
+.idea/modules.xml
+.idea/misc.xml
+.idea/NatGeoCrawler.iml
+get-pip.py

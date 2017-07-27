@@ -51,12 +51,12 @@ def GetDownloadUrl(currentPageUlr):
             if matchResult:
                 url = matchResult.group(0)
                 url = url[1:-1]
-                print url
+                print(url)
                 linkFounded = True
     if linkFounded:
         return [True, url]
     else:
-        print "Download link not found " + url
+        print("Download link not found " + url)
         return [False, ""]
 
 def GetPreviousPageUrl(currentPageUlr):
@@ -85,7 +85,7 @@ def GetPreviousPageUrl(currentPageUlr):
     if prevFounded:
         return [True, url]
     else:
-        print "Prev url not found for " + url
+        print("Prev url not found for " + url)
         return [False, ""]
 
 def CrawlNatGeo(i):
@@ -95,8 +95,8 @@ def CrawlNatGeo(i):
     while iterator < i:
         res = GetDownloadUrl(url)
         if res[0]:
-            print 'Downloading ' + res[1]
-            print 'Looking for caption'
+            print('Downloading ' + res[1])
+            print('Looking for caption')
             caption = SoupCaption(url)
 
             if len(caption) > 0:
@@ -113,33 +113,34 @@ def CrawlNatGeo(i):
             else:
                 date = ''
 
-            path = 'images/' + caption + '-' + date + '.jpg'
+            path = 'images_2/' + caption + '-' + date + '.jpg'
             if not os.path.exists(path):
                 localFile = open(path, 'wb')
                 localFile.write(requests.get(res[1]).content)
                 localFile.close()
                 iterator = iterator + 1
             else:
-                print caption + '.jpg' + ' exists'
+                print(caption + '.jpg' + ' exists')
         else:
-            print 'No download link. Looking for previoius page.'
+            print('No download link. Looking for previoius page.')
 
-        print 'Looking for previous page'
+        print('Looking for previous page')
         res = GetPreviousPageUrl(url)
         if res[0]:
-            print 'Prev found: ' + res[1]
+            print('Prev found: ' + res[1])
             url = res[1]
         else:
-            print 'Breaking!'
+            print('Breaking!')
             break
 
-    print 'End'
+    print('End')
 
 
 
 def main():
 ##    r = requests.get('https://github.com/timeline.json')
 ##    print(r.text)
+
     i = 0
     if len(sys.argv) > 1:
         i = int(sys.argv[1])
@@ -149,7 +150,7 @@ def main():
     if i < 100 and i > 0:
         CrawlNatGeo(i)
     else:
-        print i
+        print(i)
 
 
 
