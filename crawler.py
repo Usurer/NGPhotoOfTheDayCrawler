@@ -93,7 +93,7 @@ def get_photo_timestamp(page_contents):
 
 def download_url_with_caption(url, caption):
     images_directory = 'images_2'
-    utils.CreateDirectoryIfNotExists(images_directory)
+    utils.create_directory_if_not_exists(images_directory)
     path = images_directory + '/' + caption + '.jpg'
 
     if not os.path.exists(path):
@@ -112,7 +112,7 @@ def download_photos_from_archive_page(archive_page_index):
         photo_url = get_link_to_photo(photography_root_url + url)
         photo_page_content = requests.get(photography_root_url + url).text
         photo_name = get_photo_name(photo_page_content)
-        photo_name = utils.RemoveSpecialCharacters(photo_name)
+        photo_name = utils.remove_special_characters(photo_name)
         photo_timestamp = get_photo_timestamp(photo_page_content)
         photo_caption = photo_timestamp + '_' + photo_name
 
