@@ -1,7 +1,6 @@
 import requests ## http crawler
 import re ##regexp
 import os ## filesystem
-from bs4 import BeautifulSoup
 import sys
 
 
