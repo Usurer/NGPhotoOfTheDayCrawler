@@ -5,3 +5,4 @@ images/
 .idea/misc.xml
 .idea/NatGeoCrawler.iml
 get-pip.py
+*.jpg

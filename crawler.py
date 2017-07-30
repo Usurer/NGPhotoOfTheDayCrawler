@@ -14,6 +14,11 @@ import os ## filesystem
 from bs4 import BeautifulSoup
 import sys
 
+import utils
+
+global globalCounter
+globalCounter = 0
+
 def SoupCaption(currentPageUlr):
     caption = ''
     urlBase = "http://photography.nationalgeographic.com"
@@ -30,10 +35,19 @@ def SoupDate(currentPageUlr):
     soup = BeautifulSoup(r.text)
     return str(soup.find(id="caption").find(class_='publication_time').get_text())
 
-def GetArchivesPage(archiveUrl):
+# START NEW
+
+# As a result I'll have the HTML of archives page
+def GetArchivesPage(archiveUrl, index):
+    if index > 1:
+        archiveUrl = archiveUrl + '?page=' + str(index) + '&month=None'
+
+    print ('Getting archive page ' + archiveUrl)
     archivePage = requests.get(archiveUrl)
+
     return archivePage
 
+# As a result I'll have a list of photo pages' urls for photos located on the first page of Archive
 def GetLinksToPhotoPages(archivePageContent):
     result = []
 
@@ -59,6 +73,33 @@ def GetLinksToPhotoPages(archivePageContent):
         result.append(url)
 
     return result
+
+# As a result I'll have an url for the photo
+def GetLinkToPhoto(photoPageUrl):
+    pageContents = requests.get(photoPageUrl).text
+    #regex = re.compile('aemLeadImage.*?(?P<url>http://www.nationalgeographic.com/content.*?\.jpg)', re.MULTILINE | re.DOTALL)
+    twitterRegex = re.compile('<meta property="og:image" content="(?P<url>.*?)"/>', re.MULTILINE | re.DOTALL)
+    match = re.search(twitterRegex, pageContents)
+    if not match:
+        return ''
+
+    response = requests.get(match.groups(0)[0])
+    if response.status_code == 200:
+        return match.groups(0)[0]
+    else:
+        print(match.groups(0)[0] + ' code ' + response.status_code)
+
+# As a result I'll have photo name
+def GetPhotoName(photoPageUrl):
+    pageContents = requests.get(photoPageUrl).text
+    twitterMetaRegex = re.compile('<meta name="twitter:title" content="(?P<title>.*?)">', re.MULTILINE | re.DOTALL)
+    match = re.search(twitterMetaRegex, pageContents)
+    if not match:
+        return ''
+
+    return match.groups(0)
+
+# END NEW
 
 def GetDownloadUrl(currentPageUlr):
     url = currentPageUlr
@@ -165,17 +206,39 @@ def CrawlNatGeo(i):
 
     print('End')
 
+def DownloadUrlWithCaption(url, caption):
+    path = 'images_2/' + caption + '.jpg'
+    #global globalCounter
+    #path = 'images_2/' + str(globalCounter) + '.jpg'
+    #globalCounter = globalCounter + 1
+    if not os.path.exists(path):
+        localFile = open(path, 'wb')
+        localFile.write(requests.get(url).content)
+        localFile.close()
 
+def DownloadPhotosFromArchivePage(archivePageIndex):
+    photographyRootUrl = "http://photography.nationalgeographic.com/"
+    archiveUrl = photographyRootUrl + "photography/photo-of-the-day/archive/"
+    archivePage = GetArchivesPage(archiveUrl, archivePageIndex)
+    photoPagesUrls = GetLinksToPhotoPages(archivePage)
+
+    for url in photoPagesUrls:
+        photoUrl = GetLinkToPhoto(photographyRootUrl + url)
+        photoCaption = GetPhotoName(photographyRootUrl + url)
+        photoCaption = utils.RemoveSpecialCharacters(photoCaption[0])
+
+        if len(photoUrl) > 0 and len(photoCaption) > 0:
+            print ('Downloading ' + photoCaption + ' from ' + photoUrl)
+            DownloadUrlWithCaption(photoUrl, photoCaption)
+
+    return
 
 def main():
 ##    r = requests.get('https://github.com/timeline.json')
 ##    print(r.text)
 
-    archiveUrl = "http://photography.nationalgeographic.com/photography/photo-of-the-day/archive/"
-    archivePage = GetArchivesPage(archiveUrl)
-    photoPagesUrls = GetLinksToPhotoPages(archivePage)
-    for url in photoPagesUrls:
-        print(archiveUrl + url)
+    for i in range(1, 100, 1):
+        DownloadPhotosFromArchivePage(i)
 
     return
 
