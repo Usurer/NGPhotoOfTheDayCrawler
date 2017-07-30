@@ -16,27 +16,6 @@ import sys
 
 import utils
 
-global globalCounter
-globalCounter = 0
-
-def SoupCaption(currentPageUlr):
-    caption = ''
-    urlBase = "http://photography.nationalgeographic.com"
-    captionFounded = False
-    r = requests.get(urlBase + currentPageUlr)
-    soup = BeautifulSoup(r.text)
-    return str(soup.find(id="caption").find('h2'))
-
-def SoupDate(currentPageUlr):
-    caption = ''
-    urlBase = "http://photography.nationalgeographic.com"
-    captionFounded = False
-    r = requests.get(urlBase + currentPageUlr)
-    soup = BeautifulSoup(r.text)
-    return str(soup.find(id="caption").find(class_='publication_time').get_text())
-
-# START NEW
-
 # As a result I'll have the HTML of archives page
 def GetArchivesPage(archiveUrl, index):
     if index > 1:
@@ -77,27 +56,35 @@ def GetLinksToPhotoPages(archivePageContent):
 # As a result I'll have an url for the photo
 def GetLinkToPhoto(photoPageUrl):
     pageContents = requests.get(photoPageUrl).text
-    #regex = re.compile('aemLeadImage.*?(?P<url>http://www.nationalgeographic.com/content.*?\.jpg)', re.MULTILINE | re.DOTALL)
     twitterRegex = re.compile('<meta property="og:image" content="(?P<url>.*?)"/>', re.MULTILINE | re.DOTALL)
     match = re.search(twitterRegex, pageContents)
     if not match:
         return ''
 
-    response = requests.get(match.groups(0)[0])
+    result = match.groupdict()['url']
+    response = requests.get(result)
     if response.status_code == 200:
-        return match.groups(0)[0]
+        return result
     else:
-        print(match.groups(0)[0] + ' code ' + response.status_code)
+        print(result + ' code ' + response.status_code)
 
 # As a result I'll have photo name
-def GetPhotoName(photoPageUrl):
-    pageContents = requests.get(photoPageUrl).text
+def GetPhotoName(pageContents):
     twitterMetaRegex = re.compile('<meta name="twitter:title" content="(?P<title>.*?)">', re.MULTILINE | re.DOTALL)
     match = re.search(twitterMetaRegex, pageContents)
     if not match:
         return ''
 
-    return match.groups(0)
+    return match.groupdict()['title']
+
+
+def GetPhotoTimestamp(pageContents):
+    twitterMetaRegex = re.compile('<meta property="article:published_time" content="(?P<date>.*?)T', re.MULTILINE | re.DOTALL)
+    match = re.search(twitterMetaRegex, pageContents)
+    if not match:
+        return ''
+
+    return match.groupdict()['date']
 
 # END NEW
 
@@ -206,11 +193,12 @@ def CrawlNatGeo(i):
 
     print('End')
 
+
 def DownloadUrlWithCaption(url, caption):
-    path = 'images_2/' + caption + '.jpg'
-    #global globalCounter
-    #path = 'images_2/' + str(globalCounter) + '.jpg'
-    #globalCounter = globalCounter + 1
+    imagesDirectory = 'images_2'
+    utils.CreateDirectoryIfNotExists(imagesDirectory)
+    path = imagesDirectory + '/' + caption + '.jpg'
+
     if not os.path.exists(path):
         localFile = open(path, 'wb')
         localFile.write(requests.get(url).content)
@@ -224,8 +212,11 @@ def DownloadPhotosFromArchivePage(archivePageIndex):
 
     for url in photoPagesUrls:
         photoUrl = GetLinkToPhoto(photographyRootUrl + url)
-        photoCaption = GetPhotoName(photographyRootUrl + url)
-        photoCaption = utils.RemoveSpecialCharacters(photoCaption[0])
+        photoPageContent = requests.get(photographyRootUrl + url).text
+        photoName = GetPhotoName(photoPageContent)
+        photoName = utils.RemoveSpecialCharacters(photoName)
+        photoTimestamp = GetPhotoTimestamp(photoPageContent)
+        photoCaption = photoTimestamp + '_' + photoName
 
         if len(photoUrl) > 0 and len(photoCaption) > 0:
             print ('Downloading ' + photoCaption + ' from ' + photoUrl)
@@ -233,34 +224,11 @@ def DownloadPhotosFromArchivePage(archivePageIndex):
 
     return
 
-def main():
-##    r = requests.get('https://github.com/timeline.json')
-##    print(r.text)
 
+def main():
     for i in range(1, 100, 1):
         DownloadPhotosFromArchivePage(i)
-
-    return
-
-    i = 0
-    if len(sys.argv) > 1:
-        i = int(sys.argv[1])
-    else:
-        i = 10
-
-    if i < 100 and i > 0:
-        CrawlNatGeo(i)
-    else:
-        print(i)
-
 
 
 if __name__ == '__main__':
     main()
-
-
-##GetPreviousPageUrl('/photography/photo-of-the-day/')
-##        GetDownloadUrl('/photography/photo-of-the-day/bixby-bridge-california/')
-##        localFile = open(iterator + '.jpg', 'wb')
-##        localFile.write(requests.get('http://images.nationalgeographic.com/wpf/media-live/photos/000/679/cache/bixby-bridge-california_67923_990x742.jpg').content)
-##        localFile.close()
