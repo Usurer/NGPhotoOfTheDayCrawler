@@ -28,7 +28,7 @@ def get_archives_page(archive_url, index):
 
 
 # As a result I'll have a list of photo pages' urls for photos located on the first page of Archive
-def get_links_to_photo_pages(archivePageContent):
+def get_links_to_photo_pages(archive_page_content):
     result = []
 
     # Adding ? after * makes it non-greedy
@@ -36,7 +36,7 @@ def get_links_to_photo_pages(archivePageContent):
     wrapper_pattern = re.compile('(<div class="photo_info".*?</div>)', re.MULTILINE | re.DOTALL)
 
     # Use findall instead of search to get all matches
-    match_result = re.findall(wrapper_pattern, archivePageContent.text)
+    match_result = re.findall(wrapper_pattern, archive_page_content.text)
 
     if not match_result:
         return
@@ -56,8 +56,8 @@ def get_links_to_photo_pages(archivePageContent):
 
 
 # As a result I'll have an url for the photo
-def get_link_to_photo(photoPageUrl):
-    page_contents = requests.get(photoPageUrl).text
+def get_link_to_photo(photo_page_url):
+    page_contents = requests.get(photo_page_url).text
     twitter_regex = re.compile('<meta property="og:image" content="(?P<url>.*?)"/>', re.MULTILINE | re.DOTALL)
     match = re.search(twitter_regex, page_contents)
     if not match:
@@ -72,19 +72,19 @@ def get_link_to_photo(photoPageUrl):
 
 
 # As a result I'll have photo name
-def get_photo_name(pageContents):
+def get_photo_name(page_contents):
     twitter_meta_regex = re.compile('<meta name="twitter:title" content="(?P<title>.*?)">', re.MULTILINE | re.DOTALL)
-    match = re.search(twitter_meta_regex, pageContents)
+    match = re.search(twitter_meta_regex, page_contents)
     if not match:
         return ''
 
     return match.groupdict()['title']
 
 
-def get_photo_timestamp(pageContents):
+def get_photo_timestamp(page_contents):
     twitter_meta_regex = re.compile('<meta property="article:published_time" content="(?P<date>.*?)T',
                                   re.MULTILINE | re.DOTALL)
-    match = re.search(twitter_meta_regex, pageContents)
+    match = re.search(twitter_meta_regex, page_contents)
     if not match:
         return ''
 
@@ -102,10 +102,10 @@ def download_url_with_caption(url, caption):
         local_file.close()
 
 
-def download_photos_from_archive_page(archivePageIndex):
+def download_photos_from_archive_page(archive_page_index):
     photography_root_url = "http://photography.nationalgeographic.com/"
     archive_url = photography_root_url + "photography/photo-of-the-day/archive/"
-    archive_page = get_archives_page(archive_url, archivePageIndex)
+    archive_page = get_archives_page(archive_url, archive_page_index)
     photo_pages_urls = get_links_to_photo_pages(archive_page)
 
     for url in photo_pages_urls:
