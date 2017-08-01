@@ -1,9 +1,8 @@
-import requests ## http crawler
-import re ##regexp
-import os ## filesystem
-import sys
+import re  #regexp
+import os  # filesystem
 
 
+# Returns a string without non-letter characters
 def remove_special_characters(text):
     result = re.sub(r'(&#039;)', '', text)
     result = re.sub(r'[^\w]', '', result)

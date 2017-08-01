@@ -8,15 +8,17 @@
 # Copyright:   (c) Usurer 2013
 # Licence:     <your licence>
 # -------------------------------------------------------------------------------
-import requests  ## http crawler
-import re  ##regexp
-import os  ## filesystem
-import sys
+
+import requests  # http
+import re  # regexp
+import os  # filesystem
 
 import utils
 
+photography_root_url = "http://photography.nationalgeographic.com/"
+archive_url = photography_root_url + "photography/photo-of-the-day/archive/"
 
-# As a result I'll have the HTML of archives page
+# Returns HTML of archives page
 def get_archives_page(archive_url, index):
     if index > 1:
         archive_url = archive_url + '?page=' + str(index) + '&month=None'
@@ -27,7 +29,7 @@ def get_archives_page(archive_url, index):
     return archive_page
 
 
-# As a result I'll have a list of photo pages' urls for photos located on the first page of Archive
+# Returns a list of photo pages' urls for photos located on the first page of Archive
 def get_links_to_photo_pages(archive_page_content):
     result = []
 
@@ -55,7 +57,7 @@ def get_links_to_photo_pages(archive_page_content):
     return result
 
 
-# As a result I'll have an url for the photo
+# Returns an url for the photo
 def get_link_to_photo(photo_page_url):
     page_contents = requests.get(photo_page_url).text
     twitter_regex = re.compile('<meta property="og:image" content="(?P<url>.*?)"/>', re.MULTILINE | re.DOTALL)
@@ -71,7 +73,7 @@ def get_link_to_photo(photo_page_url):
         print(result + ' code ' + response.status_code)
 
 
-# As a result I'll have photo name
+# Returns photo name
 def get_photo_name(page_contents):
     twitter_meta_regex = re.compile('<meta name="twitter:title" content="(?P<title>.*?)">', re.MULTILINE | re.DOTALL)
     match = re.search(twitter_meta_regex, page_contents)
@@ -81,6 +83,7 @@ def get_photo_name(page_contents):
     return match.groupdict()['title']
 
 
+# Returns a date of picture creation as a yyyy-mm-dd string
 def get_photo_timestamp(page_contents):
     twitter_meta_regex = re.compile('<meta property="article:published_time" content="(?P<date>.*?)T',
                                   re.MULTILINE | re.DOTALL)
@@ -91,8 +94,9 @@ def get_photo_timestamp(page_contents):
     return match.groupdict()['date']
 
 
-def download_url_with_caption(url, caption):
-    images_directory = 'images_2'
+# Saves a resource with the given url to the given path as a file with the caption provided
+def download_url_with_caption(relative_path, url, caption):
+    images_directory = relative_path.strip('/')
     utils.create_directory_if_not_exists(images_directory)
     path = images_directory + '/' + caption + '.jpg'
 
@@ -103,8 +107,6 @@ def download_url_with_caption(url, caption):
 
 
 def download_photos_from_archive_page(archive_page_index):
-    photography_root_url = "http://photography.nationalgeographic.com/"
-    archive_url = photography_root_url + "photography/photo-of-the-day/archive/"
     archive_page = get_archives_page(archive_url, archive_page_index)
     photo_pages_urls = get_links_to_photo_pages(archive_page)
 
@@ -118,7 +120,7 @@ def download_photos_from_archive_page(archive_page_index):
 
         if len(photo_url) > 0 and len(photo_caption) > 0:
             print ('Downloading ' + photo_caption + ' from ' + photo_url)
-            download_url_with_caption(photo_url, photo_caption)
+            download_url_with_caption('downloads', photo_url, photo_caption)
 
     return
 
