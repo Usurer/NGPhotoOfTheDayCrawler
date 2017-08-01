@@ -91,6 +91,7 @@ def get_photo_timestamp(page_contents):
     if not match:
         return ''
 
+    return match.groupdict()['date']
 
 
 # Saves a resource with the given url to the given path as a file with the caption provided
@@ -127,7 +128,6 @@ def download_photos_from_archive_page(archive_page_index):
 def main():
     for i in range(1, 100, 1):
         download_photos_from_archive_page(i)
-
 
 
 if __name__ == '__main__':
