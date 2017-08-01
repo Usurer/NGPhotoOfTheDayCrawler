@@ -1,4 +1,4 @@
-#-------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 # Name:        module1
 # Purpose:
 #
@@ -7,301 +7,128 @@
 # Created:     09/06/2013
 # Copyright:   (c) Usurer 2013
 # Licence:     <your licence>
-#-------------------------------------------------------------------------------
-import requests ## http crawler
-import re ##regexp
-import os ## filesystem
-from bs4 import BeautifulSoup
-import sys
+# -------------------------------------------------------------------------------
+
+import requests  # http
+import re  # regexp
+import os  # filesystem
 
 import utils
 
-global globalCounter
-globalCounter = 0
+photography_root_url = "http://photography.nationalgeographic.com/"
+archive_url = photography_root_url + "photography/photo-of-the-day/archive/"
 
-
-def SoupCaption(currentPageUlr):
-    caption = ''
-    urlBase = "http://photography.nationalgeographic.com"
-    captionFounded = False
-    r = requests.get(urlBase + currentPageUlr)
-    soup = BeautifulSoup(r.text)
-    return str(soup.find(id="caption").find('h2'))
-
-def SoupDate(currentPageUlr):
-    caption = ''
-    urlBase = "http://photography.nationalgeographic.com"
-    captionFounded = False
-    r = requests.get(urlBase + currentPageUlr)
-    soup = BeautifulSoup(r.text)
-    return str(soup.find(id="caption").find(class_='publication_time').get_text())
-
-# START NEW
-
-# As a result I'll have the HTML of archives page
-def GetArchivesPage(archiveUrl, index):
+# Returns HTML of archives page
+def get_archives_page(archive_url, index):
     if index > 1:
-        archiveUrl = archiveUrl + '?page=' + str(index) + '&month=None'
+        archive_url = archive_url + '?page=' + str(index) + '&month=None'
 
-    print ('Getting archive page ' + archiveUrl)
-    archivePage = requests.get(archiveUrl)
+    print ('Getting archive page ' + archive_url)
+    archive_page = requests.get(archive_url)
 
-    return archivePage
+    return archive_page
 
-# As a result I'll have a list of photo pages' urls for photos located on the first page of Archive
-def GetLinksToPhotoPages(archivePageContent):
+
+# Returns a list of photo pages' urls for photos located on the first page of Archive
+def get_links_to_photo_pages(archive_page_content):
     result = []
 
-    # Addinf ? after * makes it non-greedy
+    # Adding ? after * makes it non-greedy
     # DOTALL makes a newline be matched by *
-    wrapperPattern = re.compile('(<div class="photo_info".*?</div>)', re.MULTILINE | re.DOTALL)
+    wrapper_pattern = re.compile('(<div class="photo_info".*?</div>)', re.MULTILINE | re.DOTALL)
 
     # Use findall instead of search to get all matches
-    matchResult = re.findall(wrapperPattern, archivePageContent.text)
+    match_result = re.findall(wrapper_pattern, archive_page_content.text)
 
-    if not matchResult:
+    if not match_result:
         return
 
-    linkPattern = re.compile('<a href=".*"')
+    link_pattern = re.compile('<a href=".*"')
 
-    for photoTeaserContent in matchResult:
-        photoLinkMatch = re.search(linkPattern, photoTeaserContent)
-        linkContent = photoLinkMatch.group(0)
-        hrefPattern = re.compile('".*"')
-        hrefMatchResult = re.search(hrefPattern, linkContent)
-        url = hrefMatchResult.group(0)
+    for photoTeaserContent in match_result:
+        photo_link_match = re.search(link_pattern, photoTeaserContent)
+        link_content = photo_link_match.group(0)
+        href_pattern = re.compile('".*"')
+        href_match_result = re.search(href_pattern, link_content)
+        url = href_match_result.group(0)
         url = url.strip('"/')
         result.append(url)
 
     return result
 
-# As a result I'll have an url for the photo
-def GetLinkToPhoto(photoPageUrl):
-    pageContents = requests.get(photoPageUrl).text
-    #regex = re.compile('aemLeadImage.*?(?P<url>http://www.nationalgeographic.com/content.*?\.jpg)', re.MULTILINE | re.DOTALL)
-    twitterRegex = re.compile('<meta property="og:image" content="(?P<url>.*?)"/>', re.MULTILINE | re.DOTALL)
-    match = re.search(twitterRegex, pageContents)
+
+# Returns an url for the photo
+def get_link_to_photo(photo_page_url):
+    page_contents = requests.get(photo_page_url).text
+    twitter_regex = re.compile('<meta property="og:image" content="(?P<url>.*?)"/>', re.MULTILINE | re.DOTALL)
+    match = re.search(twitter_regex, page_contents)
     if not match:
         return ''
 
-    response = requests.get(match.groups(0)[0])
+    result = match.groupdict()['url']
+    response = requests.get(result)
     if response.status_code == 200:
-        return match.groups(0)[0]
+        return result
     else:
-        print(match.groups(0)[0] + ' code ' + response.status_code)
+        print(result + ' code ' + response.status_code)
 
-# As a result I'll have photo name
-def GetPhotoName(photoPageUrl):
-    pageContents = requests.get(photoPageUrl).text
-    twitterMetaRegex = re.compile('<meta name="twitter:title" content="(?P<title>.*?)">', re.MULTILINE | re.DOTALL)
-    match = re.search(twitterMetaRegex, pageContents)
+
+# Returns photo name
+def get_photo_name(page_contents):
+    twitter_meta_regex = re.compile('<meta name="twitter:title" content="(?P<title>.*?)">', re.MULTILINE | re.DOTALL)
+    match = re.search(twitter_meta_regex, page_contents)
     if not match:
         return ''
 
-    return match.groups(0)
+    return match.groupdict()['title']
 
-# END NEW
 
-def GetDownloadUrl(currentPageUlr):
-    url = currentPageUlr
-    urlBase = "http://photography.nationalgeographic.com"
-    linkFounded = False
-    r = requests.get(urlBase + currentPageUlr)
-    pattern = re.compile('<div class="download_link".*</div>')
-    matchResult = re.search(pattern, r.text)
-    linkFounded = False
+# Returns a date of picture creation as a yyyy-mm-dd string
+def get_photo_timestamp(page_contents):
+    twitter_meta_regex = re.compile('<meta property="article:published_time" content="(?P<date>.*?)T',
+                                  re.MULTILINE | re.DOTALL)
+    match = re.search(twitter_meta_regex, page_contents)
+    if not match:
+        return ''
 
-    if matchResult:
-        g =  matchResult.group(0)
-        innerPattern = re.compile('<a href=".*"')
-        matchResult = re.search(innerPattern, g)
 
-        if matchResult:
-            g =  matchResult.group(0)
-            innerPattern = re.compile('".*"')
-            matchResult = re.search(innerPattern, g)
-            if matchResult:
-                url = matchResult.group(0)
-                url = url[1:-1]
-                print(url)
-                linkFounded = True
-    if linkFounded:
-        return [True, url]
-    else:
-        print("Download link not found " + url)
-        return [False, ""]
 
-def GetPreviousPageUrl(currentPageUlr):
-    url = currentPageUlr
-    urlBase = "http://photography.nationalgeographic.com"
-    prevFounded = False
-    r = requests.get(urlBase + currentPageUlr)
-    pattern = re.compile('class="prev .*</p>')
-    matchResult = re.search(pattern, r.text)
-    prevFounded = False
+# Saves a resource with the given url to the given path as a file with the caption provided
+def download_url_with_caption(relative_path, url, caption):
+    images_directory = relative_path.strip('/')
+    utils.create_directory_if_not_exists(images_directory)
+    path = images_directory + '/' + caption + '.jpg'
 
-    if matchResult:
-        g =  matchResult.group(0)
-        innerPattern = re.compile('<a href=".*"')
-        matchResult = re.search(innerPattern, g)
-
-        if matchResult:
-            g =  matchResult.group(0)
-            innerPattern = re.compile('".*"')
-            matchResult = re.search(innerPattern, g)
-
-            if matchResult:
-                url = matchResult.group(0)
-                url = url[1:-1]
-                prevFounded = True
-    if prevFounded:
-        return [True, url]
-    else:
-        print("Prev url not found for " + url)
-        return [False, ""]
-        
-def getDateFromString(dateString):
-    regDay = re.compile('[^0-9]{1,}[0-9]{1,2}[^0-9]{1}')
-    regYear = re.compile('[0-9]{4}')
-    regMonth = re.compile('[a-zA-Z]{3,}')
-    day = re.search(regDay, dateString).group(0)
-    year = re.search(regYear, dateString).group(0)
-    month = re.search(regMonth, dateString).group(0)
-    if month.lower() == 'january':
-        month = '01'    
-    elif month.lower() == 'february':
-        month = '02'
-    elif month.lower() == 'march':
-        month = '03'
-    elif month.lower() == 'april':
-        month = '04'
-    elif month.lower() == 'may':
-        month = '05'
-    elif month.lower() == 'june':
-        month = '06'
-    elif month.lower() == 'july':
-        month = '07'
-    elif month.lower() == 'august':
-        month = '08'
-    elif month.lower() == 'september':
-        month = '09'
-    elif month.lower() == 'october':
-        month = '10'
-    elif month.lower() == 'november':
-        month = '11'
-    elif month.lower() == 'december':
-        month = '12'
-    return str(day) + str(month) + str(year)
-
-def CrawlNatGeo():
-    iterator = 0
-    url = '/photography/photo-of-the-day/'
-
-    while iterator < photosToDownload:
-        res = GetDownloadUrl(url)
-        if res[0]:
-            print('Downloading ' + res[1])
-            print('Looking for caption')
-            caption = SoupCaption(url)
-
-            if len(caption) > 0:
-                caption = caption[4:-5]
-                caption = caption.replace(', ', '-')
-                caption = caption.replace(' ', '')
-            else:
-                caption = str(iterator)
-
-            date = SoupDate(url)
-            if len(date) > 0:
-                date = date.replace(' ', '_')
-                date = date.replace(',', '')
-            else:
-                date = ''
-
-            path = 'images_2/' + caption + '-' + date + '.jpg'
-            if not os.path.exists(path):
-                localFile = open(path, 'wb')
-                localFile.write(requests.get(res[1]).content)
-                localFile.close()
-                iterator = iterator + 1
-            else:
-                print(caption + '.jpg' + ' exists')
-        else:
-            print('No download link. Looking for previoius page.')
-
-        print('Looking for previous page')
-        res = GetPreviousPageUrl(url)
-        if res[0]:
-            print('Prev found: ' + res[1])
-            url = res[1]
-        else:
-            print('Breaking!')
-            break
-
-    print('End')
-
-def DownloadUrlWithCaption(url, caption):
-    path = 'images_2/' + caption + '.jpg'
-    #global globalCounter
-    #path = 'images_2/' + str(globalCounter) + '.jpg'
-    #globalCounter = globalCounter + 1
     if not os.path.exists(path):
-        localFile = open(path, 'wb')
-        localFile.write(requests.get(url).content)
-        localFile.close()
+        local_file = open(path, 'wb')
+        local_file.write(requests.get(url).content)
+        local_file.close()
 
-def DownloadPhotosFromArchivePage(archivePageIndex):
-    photographyRootUrl = "http://photography.nationalgeographic.com/"
-    archiveUrl = photographyRootUrl + "photography/photo-of-the-day/archive/"
-    archivePage = GetArchivesPage(archiveUrl, archivePageIndex)
-    photoPagesUrls = GetLinksToPhotoPages(archivePage)
 
-    for url in photoPagesUrls:
-        photoUrl = GetLinkToPhoto(photographyRootUrl + url)
-        photoCaption = GetPhotoName(photographyRootUrl + url)
-        photoCaption = utils.RemoveSpecialCharacters(photoCaption[0])
+def download_photos_from_archive_page(archive_page_index):
+    archive_page = get_archives_page(archive_url, archive_page_index)
+    photo_pages_urls = get_links_to_photo_pages(archive_page)
 
-        if len(photoUrl) > 0 and len(photoCaption) > 0:
-            print ('Downloading ' + photoCaption + ' from ' + photoUrl)
-            DownloadUrlWithCaption(photoUrl, photoCaption)
+    for url in photo_pages_urls:
+        photo_url = get_link_to_photo(photography_root_url + url)
+        photo_page_content = requests.get(photography_root_url + url).text
+        photo_name = get_photo_name(photo_page_content)
+        photo_name = utils.remove_special_characters(photo_name)
+        photo_timestamp = get_photo_timestamp(photo_page_content)
+        photo_caption = photo_timestamp + '_' + photo_name
+
+        if len(photo_url) > 0 and len(photo_caption) > 0:
+            print ('Downloading ' + photo_caption + ' from ' + photo_url)
+            download_url_with_caption('downloads', photo_url, photo_caption)
 
     return
 
-def main():    
 
+def main():
     for i in range(1, 100, 1):
-        DownloadPhotosFromArchivePage(i)
-
-    return
-
-    if len(sys.argv) > 1:
-        photosToDownload = int(sys.argv[1])
-    else:
-        print 'Downloading default amount of 10 phothos'
-        photosToDownload = 10
-    if len(sys.argv) > 2 and isinstance(sys.argv[2], str):
-        folderToStore = sys.argv[2]
-        
-    if (len(sys.argv) > 3 
-        and isinstance(sys.argv[3], int)
-        and sys.argv[3] in range(0,2)):
-            selectedFormat = formats[sys.argv[3]]
-        
-
-    if photosToDownload in range(1, 100):
-        CrawlNatGeo()
-    else:
-        print(i)
-        + 'Use a number from range 1 to 99.'
+        download_photos_from_archive_page(i)
 
 
 
 if __name__ == '__main__':
     main()
-
-
-##GetPreviousPageUrl('/photography/photo-of-the-day/')
-##        GetDownloadUrl('/photography/photo-of-the-day/bixby-bridge-california/')
-##        localFile = open(iterator + '.jpg', 'wb')
-##        localFile.write(requests.get('http://images.nationalgeographic.com/wpf/media-live/photos/000/679/cache/bixby-bridge-california_67923_990x742.jpg').content)
-##        localFile.close()
